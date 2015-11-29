@@ -11,6 +11,14 @@ import Time
 
 -- MODEL
 
+type Action 
+  = NoOp 
+  | Left 
+  | Right 
+  | Fire Bool
+  | Tick
+
+
 type alias Model =
   { position: Int,
     powerLevel: Int,
@@ -28,22 +36,38 @@ initialShip =
 
 -- UPDATE
 
-update : Int -> Model -> Model
-update x model = { model | position = model.position + x }
-
-
--- SIGNALS 
-
-direction : Signal Int
-direction =  
-  let 
-    keys = Signal.sampleOn (Time.fps 60) Keyboard.arrows
-  in 
-    Signal.map .x keys
-
-
-model : Signal Model
-model = Signal.foldp update initialShip direction
+update : Action -> Model -> Model
+update action model = 
+  case action of
+    NoOp -> 
+      model 
+    Left -> 
+      { model | position = model.position - 1 }
+    Right -> 
+      { model | position = model.position + 1 }
+    Fire firing ->
+      let
+        newPowerLevel = 
+          if (firing) 
+            then 
+              if model.powerLevel > 0 
+                then model.powerLevel - 1 
+                else model.powerLevel
+            else 
+              model.powerLevel
+      in
+        { model 
+        | isFiring = firing
+        , powerLevel = newPowerLevel
+        }
+    Tick ->
+      let 
+        newPowerLevel = 
+          if (model.powerLevel < 10) 
+            then model.powerLevel + 1 
+            else 10
+      in
+        { model | powerLevel = newPowerLevel }
 
 
 -- VIEW
@@ -77,6 +101,42 @@ drawShip gameHeight ship =
       |> rotate (degrees 90)
       |> move ((toFloat ship.position), (50 - gameHeight / 2))
       |> alpha ((toFloat ship.powerLevel) / 10)
+
+
+-- SIGNALS 
+
+fire : Signal Action
+fire = 
+  let 
+    firing = Signal.map Fire Keyboard.space
+    fps = Time.fps 30
+  in 
+    Signal.sampleOn fps firing
+
+
+ticks : Signal Action
+ticks = Signal.sampleOn (Time.every 400) (Signal.constant Tick)
+
+
+direction : Signal Action
+direction =  
+  let 
+    keys = Signal.sampleOn (Time.fps 60) Keyboard.arrows
+    toAction d = 
+      case d.x of
+        1  -> Right
+        (-1) -> Left
+        _  -> NoOp
+  in 
+    Signal.map toAction keys
+
+
+actions : Signal Action
+actions = Signal.mergeMany [ direction, fire, ticks ]
+
+
+model : Signal Model
+model = Signal.foldp update initialShip actions
 
 
 main : Signal Element
