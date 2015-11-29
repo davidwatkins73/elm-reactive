@@ -3,6 +3,7 @@ import Keyboard
 import Char
 import String exposing (toInt, fromChar)
 
+
 parseInt : Char -> Maybe Int
 parseInt character =
   case String.toInt (String.fromChar character) of
