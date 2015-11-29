@@ -26,12 +26,31 @@ initialShip =
   }
 
 
+-- UPDATE
+
+update : Int -> Model -> Model
+update x model = { model | position = model.position + x }
+
+
+-- SIGNALS 
+
+direction : Signal Int
+direction =  
+  let 
+    keys = Signal.sampleOn (Time.fps 60) Keyboard.arrows
+  in 
+    Signal.map .x keys
+
+
+model : Signal Model
+model = Signal.foldp update initialShip direction
+
+
 -- VIEW
 
-view : Model -> Element
-view ship =
+view : (Int, Int) -> Model -> Element
+view (w, h) ship =
   let
-    (w, h) = (400, 400)
     (w', h') = (toFloat w, toFloat h)
   in
     collage w h
@@ -53,13 +72,13 @@ drawShip gameHeight ship =
     shipColor =
       if ship.isFiring then red else blue
   in
-    ngon 3 30
+    ngon 5 30
       |> filled shipColor
       |> rotate (degrees 90)
       |> move ((toFloat ship.position), (50 - gameHeight / 2))
       |> alpha ((toFloat ship.powerLevel) / 10)
 
 
-main : Element
+main : Signal Element
 main =
-  view initialShip
+  Signal.map2 view Window.dimensions model
